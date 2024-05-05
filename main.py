@@ -223,18 +223,7 @@ class BoardViewGUI(BoardView):
                                 f"No valid moves for {player.name} ({player.color.name}). Passing turn.")
             return None
 
-        for move in valid_moves:
-            row, col = move
-            x1 = col * self.cellSize
-            y1 = row * self.cellSize
-            x2 = x1 + self.cellSize
-            y2 = y1 + self.cellSize
-
-            rec = self.canvas.create_rectangle(x1, y1, x2, y2, outline="yellow")
-            self.canvas.tag_bind(rec, "<Enter>",
-                                 lambda event, rect_id=rec: self.on_hover_enter(rect_id, player.color))
-            self.canvas.tag_bind(rec, "<Leave>",
-                                 lambda event, rect_id=rec: self.on_hover_leave(rect_id, Colors.EMPTY))
+        self.drawAndHighlightValidMoves(valid_moves, player)
 
         # If it's a human player, get the move interactively
         if isinstance(player, HumanPlayer):
@@ -251,11 +240,25 @@ class BoardViewGUI(BoardView):
             sleep(0.13)
             return player.getMove(board)
 
-    def on_hover_enter(self, rect_id, color):
+    def drawAndHighlightValidMoves(self, valid_moves, player):
+        for move in valid_moves:
+            row, col = move
+            x1 = col * self.cellSize
+            y1 = row * self.cellSize
+            x2 = x1 + self.cellSize
+            y2 = y1 + self.cellSize
+
+            rec = self.canvas.create_rectangle(x1, y1, x2, y2, outline="yellow")
+            self.canvas.tag_bind(rec, "<Enter>",
+                                 lambda event, rect_id=rec: self.onHoverEnter(rect_id, player.color))
+            self.canvas.tag_bind(rec, "<Leave>",
+                                 lambda event, rect_id=rec: self.onHoverLeave(rect_id, Colors.EMPTY))
+
+    def onHoverEnter(self, rect_id, color):
         # Change the fill color of the rectangle to highlight color when hovered
         self.canvas.itemconfig(rect_id, fill=self.color_map[color])
 
-    def on_hover_leave(self, rect_id, color):
+    def onHoverLeave(self, rect_id, color):
         # Revert the fill color of the rectangle to the original color when mouse leaves
         self.canvas.itemconfig(rect_id, fill=self.color_map[color])
 
