@@ -1,5 +1,7 @@
 from enum import Enum
 from time import sleep
+import tkinter as tk
+from tkinter import messagebox
 
 class Colors(Enum):
     WHITE = 0
@@ -101,7 +103,7 @@ class Board:
 
 
 class BoardView:
-    def draw(self, board):
+    def draw(self, board, player):
         pass
 
     def promptPlayerToMove(self, player, board):
@@ -112,7 +114,7 @@ class BoardView:
 
 
 class BoardViewConsole(BoardView):
-    def draw(self, board):
+    def draw(self, board, player):
         print("_" * board.size)
         for i in range(board.size):
             print("| ", end="")
@@ -165,8 +167,7 @@ class BoardViewConsole(BoardView):
         return " "
 
 
-import tkinter as tk
-from tkinter import messagebox
+
 
 
 class BoardViewGUI(BoardView):
@@ -193,7 +194,7 @@ class BoardViewGUI(BoardView):
             Colors.BLACK: 'black'
         }
 
-    def draw(self, board):
+    def draw(self, board, player):
         self.canvas.delete("all")
 
         # Draw the board and pieces
@@ -210,7 +211,7 @@ class BoardViewGUI(BoardView):
         # Display scores
         white_score = len(board.currentPosition[Colors.WHITE])
         black_score = len(board.currentPosition[Colors.BLACK])
-        self.root.title(f"Othello Game - White: {white_score}, Black: {black_score}")
+        self.root.title(f"Othello - White: {white_score}, Black: {black_score} - {player.name}'s turn")
 
         # Update the canvas
         self.root.update()
@@ -224,7 +225,6 @@ class BoardViewGUI(BoardView):
             return None
 
         self.drawAndHighlightValidMoves(valid_moves, player)
-
         # If it's a human player, get the move interactively
         if isinstance(player, HumanPlayer):
             self.clickedMove = None
@@ -310,13 +310,13 @@ class Game:
         turnsCount = 0
         while self.board.hasValidMoves():
             turnsCount += 1
-            self.boardView.draw(self.board)
+            self.boardView.draw(self.board, self.players[currentColor])
             player = self.players[currentColor]
             move = self.boardView.promptPlayerToMove(player, self.board)
             if move is not None:
                 self.board.makeMove(currentColor, move)
             currentColor = currentColor.InverseColor
-        self.boardView.draw(self.board)
+        self.boardView.draw(self.board, self.players[currentColor])
         self.boardView.printWinner(self.board, self.players, turnsCount)
 
 
@@ -404,5 +404,5 @@ class MiniMaxUtility:
 
 
 game = Game(BoardViewGUI(), HumanPlayer("Youssef", Colors.BLACK),
-            AIPlayer("AI_White", Colors.WHITE, AIDifficulty.VERYHARD))
+            HumanPlayer("Karim", Colors.WHITE))
 game.play()
