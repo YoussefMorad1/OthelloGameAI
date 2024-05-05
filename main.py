@@ -1,11 +1,9 @@
-# Othello Game With AI
 from enum import Enum
-from time import sleep
 
 
 class Colors(Enum):
-    WHITE = 0,
-    BLACK = 1,
+    WHITE = 0
+    BLACK = 1
     EMPTY = 2
 
     @property
@@ -15,6 +13,13 @@ class Colors(Enum):
         elif self == Colors.WHITE:
             return Colors.BLACK
         return Colors.WHITE
+
+
+class AIDifficulty(Enum):
+    EASY = 1
+    MEDIUM = 3
+    HARD = 5
+    VERYHARD = 7
 
 
 class Board:
@@ -57,16 +62,15 @@ class Board:
 
     def makeMove(self, color, move, isForced=False):
         i, j = move
-        if (i, j) not in self.getValidMoves(color) and not isForced:
+        if ((i, j) not in self.getValidMoves(color) and not isForced) or self.board[i][j] != Colors.EMPTY:
             return False
-        self.board[i][j] = color
-        self.applyEffects(color, move)
-        self.currentPosition[color].add((i, j))
-        self.currentPosition[Colors.EMPTY].remove((i, j))
+        self.changeColor(move, color)
+        return self.applyEffects(color, move)
 
     def applyEffects(self, color, move):
         i, j = move
         fourDirections = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+        allFlips = []
         for dx, dy in fourDirections:
             curi, curj = i + dx, j + dy
             toFlip = []
@@ -80,19 +84,19 @@ class Board:
                     toFlip.append((curi, curj))
                 curi += dx
                 curj += dy
-            for palce in toFlip:
-                self.applyOutflank(palce)
+            for place in toFlip:
+                self.changeColor(place, color)
+                allFlips.append(place)
+        return allFlips
 
     def hasValidMoves(self):
         return len(self.getValidMoves(Colors.WHITE)) > 0 or \
             len(self.getValidMoves(Colors.BLACK)) > 0
 
-    def applyOutflank(self, place):
-        if self.board[place[0]][place[1]] == Colors.EMPTY:
-            return
+    def changeColor(self, place, newColor):
         i, j = place
         self.currentPosition[self.board[i][j]].remove((i, j))
-        self.board[i][j] = self.board[i][j].InverseColor
+        self.board[i][j] = newColor
         self.currentPosition[self.board[i][j]].add((i, j))
 
 
@@ -103,7 +107,7 @@ class BoardView:
     def promptPlayerToMove(self, player, board):
         pass
 
-    def printWinner(self, board, players):
+    def printWinner(self, board, players, turnsCount):
         pass
 
 
@@ -133,7 +137,7 @@ class BoardViewConsole(BoardView):
             print("Please enter your move X Y (separated by space): ")
         else:
             print("AI is thinking...")
-            sleep(1)
+            # sleep(1)
 
         while True:
             move = player.getMove(board)
@@ -141,7 +145,7 @@ class BoardViewConsole(BoardView):
                 return move
             print("Invalid move. Please try again.")
 
-    def printWinner(self, board, players):
+    def printWinner(self, board, players, turnsCount):
         whiteScore = len(board.currentPosition[Colors.WHITE])
         blackScore = len(board.currentPosition[Colors.BLACK])
         print(f"White score: {whiteScore}")
@@ -152,6 +156,7 @@ class BoardViewConsole(BoardView):
             print(f"{players[Colors.BLACK].color.name} (Black) wins!")
         else:
             print("Draw!")
+        print(f"Game ended in {turnsCount} turns.")
 
     def getColorDraw(self, color):
         if color == Colors.WHITE:
@@ -178,16 +183,17 @@ class Game:
 
     def play(self):
         currentColor = Colors.BLACK
+        turnsCount = 0
         while self.board.hasValidMoves():
+            turnsCount += 1
             self.boardView.draw(self.board)
             player = self.players[currentColor]
             move = self.boardView.promptPlayerToMove(player, self.board)
             if move is not None:
                 self.board.makeMove(currentColor, move)
             currentColor = currentColor.InverseColor
-
         self.boardView.draw(self.board)
-        self.boardView.printWinner(self.board, self.players)
+        self.boardView.printWinner(self.board, self.players, turnsCount)
 
 
 class Player:
@@ -208,10 +214,70 @@ class HumanPlayer(Player):
 
 
 class AIPlayer(Player):
+    def __init__(self, name, color, difficulty=AIDifficulty.EASY):
+        super().__init__(name, color)
+        self.difficulty = difficulty
+
     def getMove(self, board):
-        validMoves = board.getValidMoves(self.color)
-        return validMoves[0]
+        return \
+            MiniMaxUtility.minimax(board, self.difficulty.value, float('-inf'), float('inf'), self.color, self.color)[1]
 
 
-game = Game(BoardViewConsole(), HumanPlayer("Youssef", Colors.BLACK), AIPlayer("AI", Colors.WHITE))
+class MiniMaxUtility:
+    @staticmethod
+    def minimax(board, depth, alpha, beta, curColor, maxColor):
+        if depth == 0 or not board.hasValidMoves():
+            return MiniMaxUtility.evaluate(board, maxColor), None
+
+        if curColor == maxColor:  # Maximize
+            maxEval, bestMove = float('-inf'), None
+            for move in board.getValidMoves(curColor):
+                # newboard = copy.deepcopy(board)
+                flips = board.makeMove(curColor, move)
+                eval, _ = MiniMaxUtility.minimax(board, depth - 1, alpha, beta, curColor.InverseColor, maxColor)
+                if eval > maxEval:
+                    maxEval, bestMove = eval, move
+                alpha = max(alpha, eval)
+                MiniMaxUtility.revertLastMove(board, move, flips)
+                # assert board.board == newboard.board
+                # assert board.currentPosition == newboard.currentPosition
+                if beta <= alpha:
+                    break
+            if bestMove is None: # No valid moves
+                maxEval, bestMove = MiniMaxUtility.minimax(board, depth - 1, alpha, beta, curColor.InverseColor, maxColor)
+            return maxEval, bestMove
+        else:
+            minEval, bestMove = float('inf'), None
+            for move in board.getValidMoves(curColor):
+                # newboard = copy.deepcopy(board)
+                flips = board.makeMove(curColor, move)
+                eval, _ = MiniMaxUtility.minimax(board, depth - 1, alpha, beta, curColor.InverseColor, maxColor)
+                if eval < minEval:
+                    minEval, bestMove = eval, move
+                beta = min(beta, eval)
+                MiniMaxUtility.revertLastMove(board, move, flips)
+                # assert board.board == newboard.board
+                # assert board.currentPosition == newboard.currentPosition
+                if beta <= alpha:
+                    break
+            if bestMove is None: # No valid moves
+                minEval, bestMove = MiniMaxUtility.minimax(board, depth - 1, alpha, beta, curColor.InverseColor, maxColor)
+            return minEval, bestMove
+
+    @staticmethod
+    def revertLastMove(board, lastMove, lastFlips):
+        if lastMove is None:
+            return
+        board.changeColor(lastMove, Colors.EMPTY)
+        for i, j in lastFlips:
+            board.changeColor((i, j), board.board[i][j].InverseColor)
+
+    @staticmethod
+    def evaluate(board, maxColor):
+        return len(board.currentPosition[maxColor]) - len(board.currentPosition[maxColor.InverseColor])
+
+
+# game = Game(BoardViewConsole(), HumanPlayer("Youssef", Colors.BLACK), AIPlayer("AI", Colors.WHITE))
+game = Game(BoardViewConsole(),  AIPlayer("AI_Black", Colors.BLACK, AIDifficulty.HARD),
+                                 AIPlayer("AI_White", Colors.WHITE, AIDifficulty.VERYHARD))
 game.play()
