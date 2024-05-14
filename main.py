@@ -30,6 +30,7 @@ class Board:
         self.board = [[Colors.EMPTY for _ in range(self.size)] for _ in range(self.size)]
         self.currentPosition = {Colors.WHITE: set(), Colors.BLACK: set(),
                                 Colors.EMPTY: set([(i, j) for i in range(self.size) for j in range(self.size)])}
+        self.remainingDisks = {Colors.WHITE: 32, Colors.BLACK: 32}
 
     def initializeBoard(self):
         self.makeMove(Colors.WHITE, (3, 3), True)
@@ -66,6 +67,7 @@ class Board:
         i, j = move
         if ((i, j) not in self.getValidMoves(color) and not isForced) or self.board[i][j] != Colors.EMPTY:
             return False
+        self.remainingDisks[color] -= 1
         self.changeColor(move, color)
         return self.applyEffects(color, move)
 
@@ -92,8 +94,9 @@ class Board:
         return allFlips
 
     def hasValidMoves(self):
-        return len(self.getValidMoves(Colors.WHITE)) > 0 or \
-            len(self.getValidMoves(Colors.BLACK)) > 0
+        return self.remainingDisks[Colors.WHITE] and self.remainingDisks[Colors.BLACK] and \
+            (len(self.getValidMoves(Colors.WHITE)) > 0 or len(self.getValidMoves(Colors.BLACK)) > 0)
+
 
     def changeColor(self, place, newColor):
         i, j = place
@@ -167,9 +170,6 @@ class BoardViewConsole(BoardView):
         return " "
 
 
-
-
-
 class BoardViewGUI(BoardView):
     def __init__(self):
         self.root = tk.Tk()
@@ -211,7 +211,8 @@ class BoardViewGUI(BoardView):
         # Display scores
         white_score = len(board.currentPosition[Colors.WHITE])
         black_score = len(board.currentPosition[Colors.BLACK])
-        self.root.title(f"Othello - White: {white_score}, Black: {black_score} - {player.name}'s turn")
+        self.root.title(f"Othello - White: {white_score} (remain: {board.remainingDisks[Colors.WHITE]}) "
+                        f"- Black: {black_score} (remain: {board.remainingDisks[Colors.BLACK]})")
 
         # Update the canvas
         self.root.update()
@@ -277,6 +278,11 @@ class BoardViewGUI(BoardView):
     def printWinner(self, board, players, turns_count):
         white_score = len(board.currentPosition[Colors.WHITE])
         black_score = len(board.currentPosition[Colors.BLACK])
+
+        if board.remainingDisks[Colors.WHITE] == 0:
+            messagebox.showinfo("Out Of Disks", f"Player {players[Colors.WHITE].name} (White) has no more disks left. Game Ended.")
+        if board.remainingDisks[Colors.BLACK] == 0:
+            messagebox.showinfo("Out Of Disks", f"Player {players[Colors.BLACK].name} (Black) has no more disks left. Game Ended.")
 
         # Determine the winner
         if white_score > black_score:
@@ -362,7 +368,7 @@ class MiniMaxUtility:
                 if eval > maxEval:
                     maxEval, bestMove = eval, move
                 alpha = max(alpha, eval)
-                MiniMaxUtility.revertLastMove(board, move, flips)
+                MiniMaxUtility.revertLastMove(board, move, curColor, flips)
                 # assert board.board == newboard.board
                 # assert board.currentPosition == newboard.currentPosition
                 if beta <= alpha:
@@ -380,7 +386,7 @@ class MiniMaxUtility:
                 if eval < minEval:
                     minEval, bestMove = eval, move
                 beta = min(beta, eval)
-                MiniMaxUtility.revertLastMove(board, move, flips)
+                MiniMaxUtility.revertLastMove(board, move, curColor, flips)
                 # assert board.board == newboard.board
                 # assert board.currentPosition == newboard.currentPosition
                 if beta <= alpha:
@@ -391,9 +397,10 @@ class MiniMaxUtility:
             return minEval, bestMove
 
     @staticmethod
-    def revertLastMove(board, lastMove, lastFlips):
+    def revertLastMove(board, lastMove, curColor, lastFlips):
         if lastMove is None:
             return
+        board.remainingDisks[curColor] += 1
         board.changeColor(lastMove, Colors.EMPTY)
         for i, j in lastFlips:
             board.changeColor((i, j), board.board[i][j].InverseColor)
@@ -403,6 +410,6 @@ class MiniMaxUtility:
         return len(board.currentPosition[maxColor]) - len(board.currentPosition[maxColor.InverseColor])
 
 
-game = Game(BoardViewGUI(), HumanPlayer("Youssef", Colors.BLACK),
-            HumanPlayer("Karim", Colors.WHITE))
+game = Game(BoardViewGUI(), HumanPlayer("Player1", Colors.BLACK),
+            AIPlayer("Karim", Colors.WHITE, AIDifficulty.VERYHARD))
 game.play()
