@@ -43,3 +43,9 @@ This project is an interactive Othello game developed in Python, featuring both 
 - `HumanPlayer`: Handles input for human players.
 - `AIPlayer`: Implements AI decision-making using the Minimax algorithm.
 - `MiniMaxUtility`: Utility class for the Minimax algorithm with Alpha-Beta pruning.
+
+### Preview
+
+https://github.com/YoussefMorad1/OthelloGameAI/assets/102534922/d27d47d8-f92b-4fb9-b480-992986ad1357
+
+
